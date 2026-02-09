@@ -24,11 +24,7 @@ git diff | ask-gpt "Summarize these changes and suggest a commit message"
 
 ## Installation
 
-```bash
-pip install ask-gpt
-```
-
-Or install from source:
+Install from source:
 
 ```bash
 git clone https://github.com/hbdeveloppeur/ask-gpt.git
