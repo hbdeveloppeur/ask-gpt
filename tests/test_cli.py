@@ -6,9 +6,10 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
-from ask_gpt.cli import app, is_pipe_input, main, read_stdin
+from ask_gpt.cli import app, get_git_diff, is_pipe_input, main, read_stdin
 
 runner = CliRunner()
 
@@ -113,3 +114,62 @@ class TestMainEntryPoint:
         with patch.object(sys, "argv", ["ask-gpt", "models"]):
             # Should not raise
             main()
+
+
+class TestGitDiff:
+    """Test git diff functionality."""
+
+    def test_get_git_diff_success(self):
+        """Test getting git diff when git is available."""
+        with patch("ask_gpt.cli.subprocess.run") as mock_run:
+            mock_run.return_value = Mock(stdout="diff content", returncode=0)
+            result = get_git_diff()
+            assert "diff content" in result
+            assert mock_run.call_count == 3  # staged, unstaged, untracked
+
+    def test_get_git_diff_no_git(self):
+        """Test git diff when git is not installed."""
+        with patch("ask_gpt.cli.subprocess.run", side_effect=FileNotFoundError()):
+            with pytest.raises(typer.Exit) as exc_info:
+                get_git_diff()
+            assert exc_info.value.exit_code == 1
+
+
+class TestGitCommitMessageCommand:
+    """Test git-commit-message command."""
+
+    def test_git_commit_message_no_changes(self):
+        """Test git-commit-message with no changes."""
+        with patch("ask_gpt.cli.get_git_diff", return_value=""):
+            result = runner.invoke(app, ["git-commit-message"])
+            assert result.exit_code == 1
+            assert "No changes detected" in result.output
+
+    def test_git_commit_message_with_changes(self):
+        """Test git-commit-message with changes."""
+        with patch("ask_gpt.cli.get_git_diff", return_value="some diff"):
+            with patch("ask_gpt.cli.query_openai") as mock_query:
+                mock_query.return_value = ("feat: add new feature", "More details")
+                result = runner.invoke(app, ["git-commit-message"])
+                assert result.exit_code == 0
+                assert "feat: add new feature" in result.output
+                mock_query.assert_called_once()
+
+    def test_git_commit_message_with_model_override(self):
+        """Test git-commit-message with model override."""
+        with patch("ask_gpt.cli.get_git_diff", return_value="some diff"):
+            with patch("ask_gpt.cli.query_openai") as mock_query:
+                mock_query.return_value = ("fix: bug fix", "")
+                result = runner.invoke(app, ["git-commit-message", "-m", "gpt-4"])
+                assert result.exit_code == 0
+                mock_query.assert_called_once()
+
+    def test_gcm_shortcut(self):
+        """Test gcm shortcut command."""
+        with patch("ask_gpt.cli.get_git_diff", return_value="some diff"):
+            with patch("ask_gpt.cli.query_openai") as mock_query:
+                mock_query.return_value = ("feat: new feature", "")
+                result = runner.invoke(app, ["gcm"])
+                assert result.exit_code == 0
+                assert "feat: new feature" in result.output
+                mock_query.assert_called_once()

@@ -1,5 +1,6 @@
 """Main CLI for ask-gpt."""
 
+import subprocess
 import sys
 from typing import Optional
 
@@ -36,18 +37,64 @@ def format_output(one_liner: str, answer: str, model: str, char_count: int) -> N
     console.print(f"[dim italic]{model}  ·  {char_count}c[/dim italic]")
     console.print()
     
-    # One-liner as title
-    console.print(f"[bold white]{one_liner}[/bold white]")
+    # One-liner as short answer
+    console.print(f"[bold white]short answer:[/bold white] {one_liner}")
     console.print()
     
-    # Subtle divider
-    console.print("─" * min(60, console.width), style="dim")
+    # Explanation label
+    console.print("[bold white]explanation:[/bold white]")
     
     # Answer with slight indent for readability
-    console.print()
     for line in answer.split("\n"):
-        console.print(f"  {line}")
+        console.print(f"✓  {line}")
     console.print()
+
+
+def get_git_diff() -> str:
+    """Get the git diff of staged and unstaged changes."""
+    try:
+        # Try to get staged changes first
+        result = subprocess.run(
+            ["git", "diff", "--cached"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        staged = result.stdout
+        
+        # Get unstaged changes
+        result = subprocess.run(
+            ["git", "diff"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        unstaged = result.stdout
+        
+        # Also get untracked files content
+        result = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        untracked_files = result.stdout.strip().split("\n")
+        
+        untracked_content = []
+        for f in untracked_files:
+            if f:
+                try:
+                    with open(f, "r") as file:
+                        content = file.read()
+                        untracked_content.append(f"--- /dev/null\n+++ b/{f}\n@@ -0,0 +1,{len(content.split(chr(10)))} @@\n+{content}")
+                except (IOError, OSError):
+                    pass
+        
+        diff = staged + unstaged + "\n".join(untracked_content)
+        return diff
+    except FileNotFoundError:
+        console.print("[red]Error:[/red] git command not found. Make sure git is installed.")
+        raise typer.Exit(1)
 
 
 def run_main(query: str, file: Optional[str], model: Optional[str]) -> None:
@@ -121,6 +168,41 @@ def configure() -> None:
         console.print(f"Model: [bold]{config.model}[/bold]")
 
 
+@subapp.command(name="git-commit-message")
+def git_commit_message(
+    model: Optional[str] = typer.Option(
+        None, "-m", "--model", help="Override the default model for this query"
+    ),
+) -> None:
+    """Generate a conventional commit message from git diff."""
+    diff = get_git_diff()
+    
+    if not diff.strip():
+        console.print("[red]Error:[/red] No changes detected. Stage some files with 'git add' or make changes.")
+        raise typer.Exit(1)
+    
+    query = (
+        "Following conventional commits convention (type(scope): description), "
+        "generate a concise git commit message for these code changes. "
+        "Use types like: feat, fix, docs, style, refactor, perf, test, chore. "
+        "Keep the first line under 72 characters. Add body only if needed."
+    )
+    
+    # Override model if specified
+    active_model = model or config.model
+    
+    # Show spinner while querying
+    with console.status("[dim]Analyzing changes...[/dim]", spinner="dots"):
+        one_liner, answer = query_openai(query, diff)
+    
+    # Output just the commit message
+    console.print(one_liner)
+    if answer and answer.strip() != one_liner.strip():
+        console.print()
+        for line in answer.split("\n"):
+            console.print(line)
+
+
 # Main app that handles default command behavior
 app = typer.Typer(
     name="ask-gpt",
@@ -146,6 +228,9 @@ def ask_cmd(
 # Add subcommands
 app.add_typer(subapp, name="")
 
+# Register gcm shortcut
+app.command(name="gcm")(git_commit_message)
+
 # For direct execution as default command
 def main(args: list = None):
     """Main entry point that handles both default and subcommand usage."""
@@ -162,7 +247,7 @@ def main(args: list = None):
         return  # Ensure we don't continue after sys.exit
     
     # Check if first arg is a subcommand
-    subcommands = ["models", "config", "ask"]
+    subcommands = ["models", "config", "ask", "git-commit-message", "gcm"]
     if args[0] in subcommands:
         # Normal subcommand flow
         try:

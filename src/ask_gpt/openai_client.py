@@ -23,7 +23,7 @@ def get_client() -> Optional[OpenAI]:
     return OpenAI(api_key=api_key)
 
 
-def chunk_input(text: str, max_chars: int = 2000) -> str:
+def chunk_input(text: str, max_chars: int = 3000) -> str:
     """Truncate input if it exceeds max characters."""
     if len(text) > max_chars:
         truncated = text[:max_chars]

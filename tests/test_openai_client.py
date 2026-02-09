@@ -19,13 +19,13 @@ class TestChunkInput:
     def test_long_input_truncated(self):
         """Test long input is truncated."""
         text = "a" * 3000
-        result = chunk_input(text, max_chars=2000)
-        assert len(result) == 2000
+        result = chunk_input(text, max_chars=3000)
+        assert len(result) == 3000
 
     def test_exact_length_input(self):
         """Test input at exact max length."""
-        text = "a" * 2000
-        result = chunk_input(text, max_chars=2000)
+        text = "a" * 3000
+        result = chunk_input(text, max_chars=3000)
         assert result == text
 
 

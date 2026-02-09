@@ -7,15 +7,18 @@ from typing import Optional
 
 DEFAULT_CONFIG = {
     "model": "gpt-4.1",
-    "max_input_chars": 2000,
+    "max_input_chars": 3000,
     "temperature": 0.7,
 }
 
 AVAILABLE_MODELS = [
     "gpt-4.1",
-    "gpt-5.2",
-    "gpt-5.1-codex-max",
-    "gpt-5.2-codex",
+    "gpt-4.1-mini",
+    "gpt-4.1-nano",
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4-turbo",
+    "gpt-3.5-turbo",
 ]
 
 
@@ -35,6 +38,10 @@ class Config:
                 with open(self.config_file, "r") as f:
                     loaded = json.load(f)
                     self._data.update(loaded)
+                    # Migrate: update max_input_chars if lower than default
+                    if self._data.get("max_input_chars", 0) < DEFAULT_CONFIG["max_input_chars"]:
+                        self._data["max_input_chars"] = DEFAULT_CONFIG["max_input_chars"]
+                        self.save()
             except (json.JSONDecodeError, IOError):
                 pass
 
