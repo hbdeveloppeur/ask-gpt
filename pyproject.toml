@@ -1,0 +1,58 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ask-gpt"
+version = "1.0.0"
+description = "Interact with OpenAI in your terminal, using piped input and natural language"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    {name = "ask-gpt contributors"}
+]
+keywords = ["cli", "openai", "gpt", "terminal", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "openai>=1.0.0",
+    "rich>=13.0.0",
+    "typer>=0.9.0",
+    "inquirer>=3.0.0",
+]
+
+[project.scripts]
+ask-gpt = "ask_gpt.cli:main"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/hbdeveloppeur/ask-gpt"
+Repository = "https://github.com/hbdeveloppeur/ask-gpt"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ask_gpt"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/ask_gpt/*", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
